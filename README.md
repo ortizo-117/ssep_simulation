@@ -40,7 +40,7 @@ Install (example):
 pip install numpy scipy matplotlib pandas
 ```
 
-
+## Usage example
 Here is a minimal code example that resembles the structure of the main_simulation_script.ipynb notebook, demonstrating how to generate simulated SSEP data, preprocess it, and visualize the results using a family of Morlet wavelets.
 
 ```python
