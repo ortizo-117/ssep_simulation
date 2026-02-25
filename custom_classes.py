@@ -631,7 +631,7 @@ class Dataset:
         ax.set_xlabel("Time (ms)")
         ax.set_ylabel("Amplitude (µV)")
         ax.invert_yaxis()
-        ax.legend()
+        ax.legend(loc = "upper right",bbox_to_anchor=(1, 1))
 
         if show and created_fig:
             plt.show()
