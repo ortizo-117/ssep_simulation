@@ -22,6 +22,7 @@ __all__ = [
     "Preprocessor",
     "wavelet_family",
     "Dataset",
+    "save_fig_exact_px"
 ]
 
 
@@ -599,7 +600,16 @@ class Dataset:
         )
 
     # define a method to plot the average signal across trials, with optional confidence intervals
-    def plot_average(self, show_ci=False, *, ax=None, show=True,tlim_ms=None):
+    def plot_average(
+            self,
+            show_ci=False,
+            *,
+            ax=None,
+            show=True,
+            tlim_ms=None,
+            linewidth=2,
+            naked=False,
+    ):
         t_ms, avg_sig = self.average()
 
         # crop for plotting if desired (e.g. to original window if padding was used for preprocessing)
@@ -609,7 +619,6 @@ class Dataset:
             t_ms = t_ms[m]
             avg_sig = avg_sig[m]
 
-
         created_fig = False
         if ax is None:
             fig, ax = plt.subplots(figsize=(10, 5))
@@ -617,21 +626,55 @@ class Dataset:
         else:
             fig = ax.figure
 
-        ax.plot(t_ms, avg_sig, label="Average Signal")
+        ax.plot(t_ms, avg_sig, label="Average Signal",linewidth = linewidth)
         if show_ci:
             sigs = np.array([sig for _, sig in self.trials])
             ci = 1.96 * np.std(sigs, axis=0, ddof=1) / np.sqrt(len(sigs))
+
             # crop ci to match avg_sig if we cropped for plotting
             if tlim_ms is not None:
                 ci = ci[m]
 
             ax.fill_between(t_ms, avg_sig - ci, avg_sig + ci, alpha=0.3, label="95% CI")
 
-        ax.set_title("Average Simulated SSEP Signal")
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("Amplitude (µV)")
-        ax.invert_yaxis()
-        ax.legend(loc = "upper right",bbox_to_anchor=(1, 1))
+        if not naked:
+            ax.set_title("Average Simulated SSEP Signal")
+            ax.set_xlabel("Time (ms)")
+            ax.set_ylabel("Amplitude (µV)")
+            ax.invert_yaxis()
+            ax.legend(loc="upper right", bbox_to_anchor=(1, 1))
+        else:
+            # keep y orientation consistent with non-naked
+            ax.invert_yaxis()
+
+            # remove all text/ticks/spines
+            ax.set_title("")
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.tick_params(bottom=False, left=False)
+
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+            # remove legend if it exists
+            leg = ax.get_legend()
+            if leg is not None:
+                leg.remove()
+
+            # tighten padding so the line/band fills the frame more
+            ax.margins(x=0, y=0)
+
+            # remove extra whitespace around axes within the figure
+            # (only safe to do when we created the figure here)
+            if created_fig:
+                fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+                # optional: also remove any padding added by tight_layout if used elsewhere
+                try:
+                    fig.set_tight_layout(False)
+                except Exception:
+                    pass
 
         if show and created_fig:
             plt.show()
@@ -895,36 +938,13 @@ class Dataset:
             *,
             ax=None,
             show=True,
+            naked=False,
     ):
         """
         Plot a time-frequency metric as an image.
 
-        Expects:
-          - self.tf contains 't_ms','frex' and (optionally) 'tf_complex'
-          - self.tf_metrics_out contains derived metrics like 'itpc', 'total_power_norm', etc.
-
-        Parameters
-        ----------
-        metric : str
-            Name of metric to plot, e.g. 'itpc', 'total_power', 'total_power_norm',
-            'evoked_power', 'induced_power', etc.
-        source : str
-            'metrics' -> use self.tf_metrics_out
-            'tf'      -> use self.tf (only useful if you store a 2D metric there)
-        tlim_ms : (float,float) or None
-            Crop time range in ms.
-        flim_hz : (float,float) or None
-            Crop frequency range in Hz.
-        cmap : str
-            Matplotlib colormap name.
-        vmin, vmax : float or None
-            Color limits. If None, matplotlib chooses.
-        time_lines_ms : list[float] or None
-            Draw vertical lines at these times (ms).
-        ax : matplotlib.axes.Axes or None
-            If provided, draw into this axis (no new figure created).
-        show : bool
-            If True and ax is None, call plt.show().
+        If naked=True, hides axis labels/title/ticks/spines and removes extra padding
+        (and suppresses colorbar so only the heatmap is shown).
         """
         # Choose data container
         if source == "metrics":
@@ -1000,16 +1020,45 @@ class Dataset:
             interpolation=interpolate,
         )
 
-        ax.set_xlabel("Time (ms)")
-        ax.set_ylabel("Frequency (Hz)")
-        ax.set_title(metric if title is None else title)
-
+        # Optional vertical time lines
         if time_lines_ms is not None:
             for x in time_lines_ms:
                 ax.axvline(x, linewidth=1)
 
-        if show_colorbar:
-            fig.colorbar(im, ax=ax)
+        # Formatting
+        if not naked:
+            ax.set_xlabel("Time (ms)")
+            ax.set_ylabel("Frequency (Hz)")
+            ax.set_title(metric if title is None else title)
+
+            if show_colorbar:
+                fig.colorbar(im, ax=ax)
+        else:
+            # Hide labels/title
+            ax.set_title("")
+            ax.set_xlabel("")
+            ax.set_ylabel("")
+
+            # Hide ticks and tick labels
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.tick_params(bottom=False, left=False)
+
+            # Hide spines (plot edges)
+            for spine in ax.spines.values():
+                spine.set_visible(False)
+
+            # Remove extra whitespace inside axes
+            ax.margins(x=0, y=0)
+
+            # Remove extra whitespace around axes within the figure
+            if created_fig:
+                fig.subplots_adjust(left=0, right=1, bottom=0, top=1)
+                try:
+                    fig.set_tight_layout(False)
+                except Exception:
+                    pass
+
 
         if show and created_fig:
             plt.show()
@@ -1085,6 +1134,20 @@ class Dataset:
         return fig
 
 
+
+
+# utility functions
+# savin figures of exact pixel dimensions
+def save_fig_exact_px(fig, path, width_px, height_px, *, dpi=300):
+    # Set exact canvas size
+    fig.set_size_inches(width_px / dpi, height_px / dpi, forward=True)
+
+    # Make all axes fill the whole canvas (great for naked plots)
+    for ax in fig.axes:
+        ax.set_position([0, 0, 1, 1])
+
+    # Save WITHOUT bbox_inches="tight" (tight can change pixel dimensions)
+    fig.savefig(path, dpi=dpi, bbox_inches=None, pad_inches=0)
 
 
 
