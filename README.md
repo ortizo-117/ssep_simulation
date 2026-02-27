@@ -1,6 +1,8 @@
 # Tibial SSEP Simulation + Time–Frequency Analysis
 
-Goal:This project simulates **tibial somatosensory evoked potentials (SSEPs)**, optionally preprocesses the simulated trials, and computes/visualizes **time–frequency representations** (e.g., power, ITPC) using a **family of Morlet wavelets**. :contentReference[oaicite:0]{index=0}
+Goal:This project simulates **tibial somatosensory evoked potentials (SSEPs)**, optionally preprocesses the simulated trials, and computes/visualizes **time–frequency representations** (e.g., power, ITPC) using a **family of Morlet wavelets**. From these, we generate image reports of ERP and ITPC features that are anonymized and saved for classification purposes. Finally, we evaluate the performance of different machine learning algorithms for classifying the SSEP conditions based on the generated images.
+The objective is to test the ability of image-based simple classifiers to predict the condition and to compare the performance of different image reports (e.g., ERP only, TF only, combined) for this task. 
+
 
 
 The main steps include:
@@ -19,10 +21,13 @@ The main steps include:
 ## Project structure
 
 - `01_main_simulation_script.ipynb`  
-  Main notebook: defines SSEP peak “ground truth” (e.g., normal/delayed/reduced conditions), generates multi-trial datasets, runs preprocessing, and produces plots/reports.
+  Main simulation notebook: defines SSEP peak “ground truth” (e.g., normal/delayed/reduced conditions), generates multi-trial datasets, runs preprocessing, and produces plots/reports.
 
 - `02_anonimizing_simulated_data.ipynb`  
   Utility notebook: copies `.jpg` outputs into a new folder while renaming them to random `subject_####.jpg` IDs and writing a CSV mapping.
+
+- '03_evaluation_of_classification_algorithms.ipynb'  
+  Main classification notebook: loads the generated '.jpg' files and trains/evaluates CNN classifiers to predict the original SSEP condition for a 3 class problem (normal/abnormal/abolished).
 
 - `custom_classes.py`  
   Core implementation: peak generators, dataset simulator, preprocessing pipeline, wavelet-family builder, and TF metrics/plots. :contentReference[oaicite:1]{index=1}
@@ -40,7 +45,7 @@ Install (example):
 pip install numpy scipy matplotlib pandas
 ```
 
-## Usage example
+## Usage example for main simulation notebook for generation and visualization of simulated SSEP data
 Here is a minimal code example that resembles the structure of the main_simulation_script.ipynb notebook, demonstrating how to generate simulated SSEP data, preprocess it, and visualize the results using a family of Morlet wavelets.
 
 ```python
@@ -85,3 +90,15 @@ metrics = ds.tf_metrics(baseline_ms=(-50, 0), kind="db")
 # 5) Plot a combined TF+ERP report
 ds.plot_report(tf_metric="itpc", tlim_ms=(-50, 200), flim_hz=(4, 80), show=True)
 ```
+# Machine Learning Classification Description
+The workflow consist of the following steps:
+1. **Data Preparation**: Load the anonymized `.jpg` files containing the ERP and time-frequency representations of the simulated SSEP data. Each image corresponds to a specific SSEP condition.
+2. **Label Mapping**: Use the CSV mapping file generated during the anonymization process to associate each image with its original SSEP condition (e.g., normal, abnormal, abolished).
+3. **Image to Tensor Conversion**: Convert the loaded images into a format suitable for input into a Convolutional Neural Network (CNN). This involves resizing the images, normalizing pixel values, and converting them to tensors.
+4. **Dataclass Definition**: Define a dataclass to represent the dataset, including attributes for the image data, labels, and any necessary metadata.
+5. **Class imbalance Handling**: If the dataset is imbalanced (i.e., some classes have more samples than others), apply techniques such as oversampling, undersampling, or class weighting to ensure that the model learns effectively from all classes.
+4. **Defining dataloaders**: Create dataloaders for training and validation sets to efficiently feed data into the CNN during the training process.
+5. **Model Definition**: Defined 3 different CNN architectures - Simple CNN, ResNet, and EfficientNet - to classify the SSEP conditions based on the input images. ResNet and EfficientNet backbone architectures were frozen to leverage pre-trained weights, while the final classification layers were trained on the SSEP dataset.
+6. **Two input late fusion model**: In addition to the individual CNN models, a late fusion model was implemented that takes both ERP and time-frequency images as input. This model combines the features extracted from both types of images to make a final classification decision.
+7. **Training and Evaluation definitions: Define the training loop, loss function, and evaluation metrics (e.g., accuracy, precision, recall) to train the CNN models and evaluate their performance on a validation set.
+8. **Experimental setup**: Train each of the defined CNN models on the training dataset and evaluate their performance on the validation set. Compare the results to determine which model architecture performs best for classifying the SSEP conditions based on the generated images.
