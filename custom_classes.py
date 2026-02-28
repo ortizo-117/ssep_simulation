@@ -255,15 +255,15 @@ class wavelet_family:
         if self.n_data <= 0:
             raise ValueError("n_data must be a positive integer.")
 
-        # validating minimum number of cycles for each wavelet (e.g. 3 cycles is a common practical minimum)
-        n_cycles = self.frex * self.fwhm
+        # cycles contained within the time-domain FWHM (fwhm is in seconds)
+        cycles_in_fwhm = self.frex * self.fwhm
 
-        too_few = n_cycles < self.min_cycles
+        too_few = cycles_in_fwhm < self.min_cycles
         if np.any(too_few):
             bad_freqs = self.frex[too_few]
-            bad_cycles = n_cycles[too_few]
+            bad_cycles = cycles_in_fwhm[too_few]
             warnings.warn(
-                "Some wavelets contain fewer than 3 cycles.\n"
+                f"Some wavelets contain fewer than {self.min_cycles:g} cycles within the time-FWHM.\n"
                 + "\n".join(
                     [f"  f={f:.2f} Hz → {c:.2f} cycles"
                      for f, c in zip(bad_freqs, bad_cycles)]
@@ -635,7 +635,7 @@ class Dataset:
             if tlim_ms is not None:
                 ci = ci[m]
 
-            ax.fill_between(t_ms, avg_sig - ci, avg_sig + ci, alpha=0.3, label="95% CI")
+            ax.fill_between(t_ms, avg_sig - ci, avg_sig + ci, alpha=0.5, label="95% CI")
 
         if not naked:
             ax.set_title("Average Simulated SSEP Signal")
